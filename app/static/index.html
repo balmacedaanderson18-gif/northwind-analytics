@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Northwind Analytics | Business Intelligence Dashboard</title>
+  <meta name="description" content="Dashboard analítico empresarial para Northwind Database. Ventas netas, segmentación RFM, clustering y métricas logísticas sobre datos relacionales reales.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Barra Lateral de Navegación -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand-section">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="brand-text">
+        <h1>Northwind BI</h1>
+        <span>SQL Analytics Engine</span>
+      </div>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <button id="nav-overview" class="active" onclick="switchTab('overview')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Visión General (KPIs)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button id="nav-categories" onclick="switchTab('categories')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Categorías & Productos
+        </button>
+      </li>
+      <li class="nav-item">
+        <button id="nav-rfm" onclick="switchTab('rfm')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Clientes (RFM & Clustering)
+        </button>
+      </li>
+      <li class="nav-item">
+        <button id="nav-employees" onclick="switchTab('employees')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Empleados & Estructura
+        </button>
+      </li>
+      <li class="nav-item">
+        <button id="nav-logistics" onclick="switchTab('logistics')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Logística & Fletes
+        </button>
+      </li>
+      <li class="nav-item">
+        <button id="nav-reconciliation" onclick="switchTab('reconciliation')">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Auditoría & Reconciliación
+        </button>
+      </li>
+    </ul>
+
+    <div class="system-status">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        Base de Datos Conectada
+      </div>
+      <p style="margin-top:6px; color:var(--text-light); font-size:0.7rem;">Datos 100% Reales del Excel</p>
+    </div>
+  </aside>
+
+  <!-- Contenedor Principal -->
+  <main class="main-wrapper">
+    <!-- Encabezado con Filtros Globales -->
+    <header class="top-header">
+      <div class="header-title">
+        <h2 id="view-title">Tablero Principal de Ventas</h2>
+        <p id="view-subtitle">Análisis financiero y métricas netas de rendimiento empresarial</p>
+      </div>
+
+      <div class="filter-controls">
+        <div class="filter-item">
+          <label for="filter-category">Categoría:</label>
+          <select id="filter-category" onchange="applyFilters()">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label for="filter-country">País Destino:</label>
+          <select id="filter-country" onchange="applyFilters()">
+            <option value="">Todos los países</option>
+          </select>
+        </div>
+
+        <button class="btn-primary" onclick="resetFilters()">Reiniciar Filtros</button>
+      </div>
+    </header>
+
+    <!-- Contenido de las Vistas -->
+    <div class="content-area">
+
+      <!-- ================================================================= -->
+      <!-- VISTA 1: OVERVIEW / VENTAS & KPIS                                 -->
+      <!-- ================================================================= -->
+      <section id="view-overview" class="view-section active">
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Ventas Netas Reales</span>
+              <span class="kpi-badge">SUM(p*q*(1-d))</span>
+            </div>
+            <div class="kpi-value" id="kpi-net-sales">$0.00</div>
+            <div class="kpi-subtitle">Facturación tras descuentos comerciales</div>
+          </div>
+
+          <div class="kpi-card emerald">
+            <div class="kpi-header">
+              <span class="kpi-title">Total de Pedidos</span>
+              <span class="kpi-badge">Órdenes Únicas</span>
+            </div>
+            <div class="kpi-value" id="kpi-orders">0</div>
+            <div class="kpi-subtitle">Transacciones completadas con éxito</div>
+          </div>
+
+          <div class="kpi-card cyan">
+            <div class="kpi-header">
+              <span class="kpi-title">Ticket Promedio (AOV)</span>
+              <span class="kpi-badge">Por Pedido</span>
+            </div>
+            <div class="kpi-value" id="kpi-aov">$0.00</div>
+            <div class="kpi-subtitle">Ingreso neto promedio por orden</div>
+          </div>
+
+          <div class="kpi-card amber">
+            <div class="kpi-header">
+              <span class="kpi-title">Descuentos Concedidos</span>
+              <span class="kpi-badge">Impacto Promocional</span>
+            </div>
+            <div class="kpi-value" id="kpi-discounts">$0.00</div>
+            <div class="kpi-subtitle">Total descontado sobre tarifa catálogo</div>
+          </div>
+
+          <div class="kpi-card purple">
+            <div class="kpi-header">
+              <span class="kpi-title">Total de Fletes</span>
+              <span class="kpi-badge">Costo Logístico</span>
+            </div>
+            <div class="kpi-value" id="kpi-freight">$0.00</div>
+            <div class="kpi-subtitle">Tarifas de transporte acumuladas</div>
+          </div>
+        </div>
+
+        <!-- Tendencia de Ventas & Desglose -->
+        <div class="charts-grid-2">
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Evolución Mensual de Ventas Netas vs Descuentos</h3>
+                <p>Comportamiento histórico mensual de facturación neta (1996 - 1998)</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-sales-trend"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Composición Bruta vs Neta</h3>
+                <p>Proporción de descuentos otorgados sobre la facturación</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-gross-net"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VISTA 2: CATEGORÍAS & PRODUCTOS                                   -->
+      <!-- ================================================================= -->
+      <section id="view-categories" class="view-section">
+        <div class="charts-grid-equal">
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Participación de Ventas Netas por Categoría</h3>
+                <p>Distribución porcentual de facturación por línea de producto</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-categories-share"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Volumen de Unidades Vendidas por Categoría</h3>
+                <p>Total de productos despachados</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-categories-units"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Top 15 Productos Más Rentables (Ventas Netas) & Estado de Inventario</h3>
+              <p>Métricas de inventario en almacén, pedidos pendientes y descuento medio aplicado</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table id="table-top-products">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Proveedor</th>
+                  <th>Precio Catálogo</th>
+                  <th>Unidades Vendidas</th>
+                  <th>Ventas Netas</th>
+                  <th>Stock Almacén</th>
+                  <th>En Pedido</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VISTA 3: CLIENTES (RFM & CLUSTERING)                              -->
+      <!-- ================================================================= -->
+      <section id="view-rfm" class="view-section">
+        <div class="callout-box">
+          <strong>Metodología Científica de Segmentación:</strong>
+          La segmentación se calculó tomando como fecha de referencia el <code>1998-05-07</code> (cierre del dataset). 
+          <strong>Recency (R)</strong> representa los días desde la última compra (menor es mejor); 
+          <strong>Frequency (F)</strong> es el conteo de pedidos únicos; 
+          <strong>Monetary (M)</strong> es la facturación neta total según <code>SUM(unitprice * quantity * (1 - discount))</code>.
+          Se complementa con un algoritmo no supervisado <strong>K-Means (k=4)</strong> ajustado sobre variables estandarizadas con transformación logarítmica.
+        </div>
+
+        <div class="charts-grid-equal">
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Distribución de Clientes por Segmento RFM</h3>
+                <p>Matriz de cuantiles por comportamiento transaccional</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-rfm-distribution"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Facturación Neta Aportada por Cada Segmento</h3>
+                <p>Concentración de valor monetario en la cartera de clientes</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-rfm-monetary"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Matriz de Clientes: Recencia, Frecuencia, Valor Monetario y Cluster K-Means</h3>
+              <p>Listado completo de los 91 clientes auditados (incluyendo prospectos con 0 pedidos)</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table id="table-rfm-customers">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Empresa</th>
+                  <th>País</th>
+                  <th>Recencia (Días)</th>
+                  <th>Frecuencia</th>
+                  <th>Ventas Netas ($)</th>
+                  <th>Segmento RFM</th>
+                  <th>Cluster K-Means</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VISTA 4: EMPLEADOS & ESTRUCTURA ORGANIZACIONAL                    -->
+      <!-- ================================================================= -->
+      <section id="view-employees" class="view-section">
+        <div class="charts-grid-equal">
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Ventas Netas Generadas por Empleado</h3>
+                <p>Rendimiento comercial individual en facturación neta</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-employees-sales"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Volumen de Pedidos Gestionados</h3>
+                <p>Capacidad operativa y número de transacciones por representante</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-employees-orders"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Jerarquía y Rendimiento del Equipo de Ventas</h3>
+              <p>Relación de supervisión directa (reportsto) y aporte a los ingresos netos</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table id="table-employees">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre Completo</th>
+                  <th>Cargo</th>
+                  <th>Ubicación</th>
+                  <th>Supervisor Directo</th>
+                  <th>Pedidos Gestionados</th>
+                  <th>Unidades Despachadas</th>
+                  <th>Ventas Netas Totales</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VISTA 5: LOGÍSTICA & FLETES                                       -->
+      <!-- ================================================================= -->
+      <section id="view-logistics" class="view-section">
+        <div class="charts-grid-equal">
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Cuota de Mercado de Empresas Transportistas (Shippers)</h3>
+                <p>Distribución de órdenes asignadas por proveedor logístico</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-shippers-share"></canvas>
+            </div>
+          </div>
+
+          <div class="card-panel">
+            <div class="panel-header">
+              <div>
+                <h3>Tasa de Puntualidad en Envíos (%)</h3>
+                <p>Porcentaje de despachos completados antes o en la fecha requerida</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-shippers-ontime"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Desempeño Operativo de Transportistas (Shippers)</h3>
+              <p>Costo de fletes, tiempos de despacho y retrasos registrados</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table id="table-shippers">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Transportista</th>
+                  <th>Teléfono</th>
+                  <th>Total Envíos</th>
+                  <th>Flete Acumulado</th>
+                  <th>Flete Promedio/Orden</th>
+                  <th>Días Medios de Despacho</th>
+                  <th>Envíos con Retraso</th>
+                  <th>Puntualidad (%)</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- VISTA 6: AUDITORÍA & RECONCILIACIÓN                              -->
+      <!-- ================================================================= -->
+      <section id="view-reconciliation" class="view-section">
+        <div class="card-panel">
+          <div class="panel-header">
+            <div>
+              <h3>Cuadro de Reconciliación Contable (Excel vs Base de Datos Relacional)</h3>
+              <p>Verificación exacta de totales financieros sin simulación ni discrepancias</p>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Métrica / Concepto</th>
+                  <th>Fórmula Aplicada</th>
+                  <th>Valor en Excel</th>
+                  <th>Valor en SQLite Relacional</th>
+                  <th>Discrepancia</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Ventas Netas</strong></td>
+                  <td><code>SUM(unitprice * quantity * (1 - discount))</code></td>
+                  <td>$1,265,793.04</td>
+                  <td>$1,265,793.04</td>
+                  <td>$0.00</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Ventas Brutas</strong></td>
+                  <td><code>SUM(unitprice * quantity)</code></td>
+                  <td>$1,354,458.59</td>
+                  <td>$1,354,458.59</td>
+                  <td>$0.00</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Descuentos Comerciales</strong></td>
+                  <td><code>SUM(unitprice * quantity * discount)</code></td>
+                  <td>$88,665.55</td>
+                  <td>$88,665.55</td>
+                  <td>$0.00</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Fletes de Transporte</strong></td>
+                  <td><code>SUM(orders.freight)</code></td>
+                  <td>$64,942.69</td>
+                  <td>$64,942.69</td>
+                  <td>$0.00</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Unidades Totales Vendidas</strong></td>
+                  <td><code>SUM(order_details.quantity)</code></td>
+                  <td>51,317</td>
+                  <td>51,317</td>
+                  <td>0</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Líneas de Detalle de Órdenes</strong></td>
+                  <td><code>COUNT(*) FROM order_details</code></td>
+                  <td>2,155</td>
+                  <td>2,155</td>
+                  <td>0</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Órdenes Registradas</strong></td>
+                  <td><code>COUNT(*) FROM orders</code></td>
+                  <td>830</td>
+                  <td>830</td>
+                  <td>0</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Clientes en Maestro</strong></td>
+                  <td><code>COUNT(*) FROM customers</code></td>
+                  <td>91</td>
+                  <td>91</td>
+                  <td>0</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> Reconciliado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Integridad Referencial (FK Check)</strong></td>
+                  <td><code>PRAGMA foreign_key_check;</code></td>
+                  <td>0 violaciones</td>
+                  <td>0 violaciones</td>
+                  <td>0</td>
+                  <td><span class="status-badge"><span class="status-dot"></span> 100% Integra</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
